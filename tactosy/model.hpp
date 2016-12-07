@@ -3,9 +3,10 @@
 
 #include <map>
 
-using namespace std;
 namespace tactosy
 {
+    using namespace std;
+
     enum Position {
         Left,
         Right,
@@ -23,7 +24,7 @@ namespace tactosy
         FeeddbackMode mode;
         vector<uint8_t> values;
 
-        TactosyFeedback(Position _pos, int _val[], FeeddbackMode _mod)
+        TactosyFeedback(Position _pos, const int _val[], FeeddbackMode _mod)
         {
             position = _pos;
             mode = _mod;
@@ -34,7 +35,7 @@ namespace tactosy
             }
         }
 
-        TactosyFeedback(Position _pos, vector<uint8_t> _val, FeeddbackMode _mod)
+        TactosyFeedback(Position _pos, const vector<uint8_t> &_val, FeeddbackMode _mod)
         {
             position = _pos;
             mode = _mod;
@@ -53,11 +54,11 @@ namespace tactosy
 
     struct Point
     {
-        double x;
-        double y;
-        double intensity;
+        float x;
+        float y;
+        float intensity;
 
-        Point(double _x, double _y, double _intensity)
+        Point(float _x, float _y, float _intensity)
         {
             x = _x;
             y = _y;
@@ -72,6 +73,16 @@ namespace tactosy
         int durationMillis;
         map<int, vector<TactosyFeedback>> feedback;
 
+    };
+
+    class Common
+    {
+    public:
+        template<class T, class V>
+        static bool containsKey(T key, const map<T, V> &mapData)
+        {
+            return mapData.find(key) != mapData.end();
+        }
     };
 
     class FeedbackSignal
@@ -130,20 +141,20 @@ namespace tactosy
             HapticFeedback = tactosyFile.feedback;
         }
 
-        static FeedbackSignal Copy(FeedbackSignal &signal, int interval, double intensityRatio, double durationRatio)
+        static FeedbackSignal Copy(const FeedbackSignal &signal, int interval, float intensityRatio, float durationRatio)
         {
             FeedbackSignal feedbackSignal;
             feedbackSignal.EndTime = static_cast<int>(signal.EndTime * durationRatio / interval * interval) + interval;
             feedbackSignal.StartTime = -1;
-            //			feedbackSignal.HapticFeedback = new Dictionary<int, TactosyFeedback[]>();
+
             int time;
             for (time = 0; time < feedbackSignal.EndTime; time += interval)
             {
                 int keyTime = static_cast<int>(time / durationRatio) / interval*interval;
 
-                if (signal.HapticFeedback.find(keyTime) != signal.HapticFeedback.end()) // contains
+                if (Common::containsKey(keyTime, signal.HapticFeedback)) // contains
                 {
-                    vector<TactosyFeedback> tactosyFeedbacks = signal.HapticFeedback[keyTime];
+                    vector<TactosyFeedback> tactosyFeedbacks = signal.HapticFeedback.at(keyTime);
 
                     vector<TactosyFeedback> copiedFeedbacks(tactosyFeedbacks.size());
 

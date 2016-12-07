@@ -11,25 +11,25 @@
 #endif
 #include <assert.h>
 
-using namespace std;
-using easywsclient::WebSocket;
-
 namespace tactosy
 {
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))  
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))  
+    using namespace std;
+    using easywsclient::WebSocket;
     class TactosyManager
     {
         unique_ptr<WebSocket> ws;
         
         map<string, FeedbackSignal> _registeredSignals;
         map<string, FeedbackSignal> _activeSignals;
+        mutex mtx;
         int _currentTime = 0;
         int _interval = 20;
         int _motorSize = 20;
         TactosyTimer timer;
 
-        void playFeedback(TactosyFeedback &feedback)
+        void playFeedback(const TactosyFeedback &feedback)
         {
             vector<uint8_t> message(_motorSize + 2, 0);
             if (feedback.mode == PATH_MODE)
@@ -58,10 +58,37 @@ namespace tactosy
             send(message);
         }
 
-        void send(vector<uint8_t> &message) const
+        void send(const vector<uint8_t> &message) const
         {
-            ws->sendBinary(message);
-            ws->poll(100);
+            if (ws->getReadyState() != WebSocket::OPEN)
+            {
+                
+            } else
+            {
+                ws->sendBinary(message);
+                ws->poll();
+            }
+        }
+
+        void updateActive(const string &key, const FeedbackSignal& signal)
+        {
+            mtx.lock();
+            _activeSignals[key] = signal;
+            mtx.unlock();
+        }
+
+        void remove(const string &key)
+        {
+            mtx.lock();
+            _activeSignals.erase(key);
+            mtx.unlock();
+        }
+
+        void removeAll()
+        {
+            mtx.lock();
+            _activeSignals.clear();
+            mtx.unlock();
         }
 
         void doRepeat()
@@ -93,27 +120,27 @@ namespace tactosy
             bool pathModeActiveLeft = false;
             bool pathModeActiveRight = false;
 
-            for (auto keyPair : _activeSignals)
+            mtx.lock();
+            for (auto keyPair = _activeSignals.begin(); keyPair != _activeSignals.end(); ++keyPair)
             {
-                auto key = keyPair.first;
-                auto signalData = keyPair.second;
+                auto key = keyPair->first;
 
-                if (signalData.StartTime > _currentTime || signalData.StartTime < 0)
+                if (keyPair->second.StartTime > _currentTime || keyPair->second.StartTime < 0)
                 {
-                    signalData.StartTime = _currentTime;
+                    keyPair->second.StartTime = _currentTime;
                 }
 
-                int timePast = _currentTime - signalData.StartTime;
+                int timePast = _currentTime - keyPair->second.StartTime;
 
-                if (timePast > signalData.EndTime)
+                if (timePast > keyPair->second.EndTime)
                 {
                     expiredSignals.push_back(key);
                 }
                 else
                 {
-                    if (Util::containsKey(timePast, signalData.HapticFeedback))
+                    if (Common::containsKey(timePast, keyPair->second.HapticFeedback))
                     {
-                        auto hapticFeedbackData = signalData.HapticFeedback[timePast];
+                        auto hapticFeedbackData = keyPair->second.HapticFeedback.at(timePast);
                         for (auto &feedback : hapticFeedbackData)
                         {
                             if (feedback.mode == PATH_MODE && feedback.position == Left)
@@ -181,9 +208,12 @@ namespace tactosy
                     }
                 }
             }
+
+            mtx.unlock();
+
             for (auto &key : expiredSignals)
             {
-                _activeSignals.erase(key);
+                remove(key);
             }
 
             if (dotModeLeftActive)
@@ -225,19 +255,12 @@ namespace tactosy
 
         void callbackFunc()
         {
-            try
-            {
-                doRepeat();
-            }
-            catch (int e)
-            {
-                int  a = e + 1;
-            }
+            doRepeat();
         }
 
 
     public:
-        void registerFeedback(string key, string path)
+        void registerFeedback(const string &key, const string &path)
         {
             TactosyFile file = Util::parse(path);
             FeedbackSignal signal(file);
@@ -270,14 +293,14 @@ namespace tactosy
             playFeedback(feedback);
         }
 
-        void sendSignal(string key, Position position, vector<uint8_t> &motorBytes, int durationMillis)
+        void sendSignal(const string &key, Position position, const vector<uint8_t> &motorBytes, int durationMillis)
         {
             TactosyFeedback feedback(position, motorBytes, DOT_MODE);
             FeedbackSignal signal(feedback, durationMillis, _interval);
-            _activeSignals[key] = signal;
+            updateActive(key, signal);
         }
 
-        void sendSignal(string key, Position position, vector<Point> &points, int durationMillis)
+        void sendSignal(const string &key, Position position, const vector<Point> &points, int durationMillis)
         {
             if (points.size() > 6 || points.size() <= 0)
             {
@@ -296,53 +319,53 @@ namespace tactosy
 
             TactosyFeedback feedback(position, bytes, PATH_MODE);
             FeedbackSignal signal(feedback, durationMillis, _interval);
-            _activeSignals[key] = signal;
+            updateActive(key, signal);
         }
 
-        void sendSignal(string key, double intensity, double duration)
+        void sendSignal(const string &key, float intensity, float duration)
         {
-            if (!Util::containsKey(key, _registeredSignals))
+            if (!Common::containsKey(key, _registeredSignals))
             {
                 printf("Key : %s is not registered.", key.c_str());
 
                 return;
             }
 
-            if (duration < 0.01 || duration > 100)
+            if (duration < 0.01f || duration > 100.0f)
             {
                 printf("not allowed duration %f", duration);
                 return;
             }
 
-            if (intensity < 0.01f || intensity > 100)
+            if (intensity < 0.01f || intensity > 100.0f)
             {
                 printf("not allowed intensity %f", duration);
                 return;
             }
 
-            FeedbackSignal signal = _registeredSignals[key];
+            FeedbackSignal signal = _registeredSignals.at(key);
 
             FeedbackSignal copiedFeedbackSignal = FeedbackSignal::Copy(signal, _interval, intensity, duration);
-
-            _activeSignals[key] = copiedFeedbackSignal;
+            updateActive(key, copiedFeedbackSignal);
         }
 
-        void sendSignal(string key)
+        void sendSignal(const string &key)
         {
-            if (!Util::containsKey(key, _registeredSignals))
+            if (!Common::containsKey(key, _registeredSignals))
             {
                 printf("Key : %s is not registered.", key.c_str());
 
                 return;
             }
 
-            auto signal = _registeredSignals[key];
+            auto signal = _registeredSignals.at(key);
 
             signal.StartTime = -1;
-            if (!Util::containsKey(key, _activeSignals))
+            if (!Common::containsKey(key, _activeSignals))
             {
-                _activeSignals[key] = signal;
+                updateActive(key, signal);
             }
+            
         }
 
         bool isPlaying()
@@ -350,25 +373,25 @@ namespace tactosy
             return _activeSignals.size() > 0;
         }
 
-        bool isPlaying(string key)
+        bool isPlaying(const string &key)
         {
-            return Util::containsKey(key, _activeSignals);
+            return Common::containsKey(key, _activeSignals);
         }
 
         void turnOff()
         {
-            _activeSignals.clear();
+            removeAll();
         }
 
-        void turnOff(string key)
+        void turnOff(const string &key)
         {
-            if (!Util::containsKey(key, _activeSignals))
+            if (!Common::containsKey(key, _activeSignals))
             {
                 printf("feedback with key( %s ) is not playing.", key.c_str());
                 return;
             }
 
-            _activeSignals.erase(key);
+            remove(key);
         }
 
         void destroy()
