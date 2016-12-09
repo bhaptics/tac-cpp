@@ -3,11 +3,13 @@
 
 #include <chrono>
 #include <thread>
+#include <deque>
+#include <mutex>
+#include <future>
 
 
 namespace tactosy
 {
-    using namespace std;
     class TactosyTimer
     {
     public:
@@ -20,13 +22,13 @@ namespace tactosy
         {
             if (!started)
             {
-                inter = _interval;
+                interval = _interval;
                 started = true;
-                runner = thread(&TactosyTimer::workerFunc, this);
+                runner = std::thread(&TactosyTimer::workerFunc, this);
             }
         }
 
-        void addTimerHandler(function<void()> &callback)
+        void addTimerHandler(std::function<void()> &callback)
         {
             callbackFunc = callback;
         }
@@ -40,14 +42,13 @@ namespace tactosy
             }
         }
     private:
-        bool started = false;
-        function<void()> callbackFunc;
-        int inter = 20;
+        std::atomic<bool> started = false;
+        std::function<void()> callbackFunc;
+        int interval = 20;
+        std::deque<std::packaged_task<void()>> tasks;
 
         void workerFunc()
         {
-            chrono::milliseconds interval(inter);
-
             while (started)
             {
                 if (callbackFunc)
@@ -58,7 +59,7 @@ namespace tactosy
                 std::this_thread::sleep_for(std::chrono::milliseconds(interval));
             }
         }
-        thread runner;
+        std::thread runner;
     };
 }
 

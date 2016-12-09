@@ -107,7 +107,7 @@ namespace easywsclient {
             fprintf(stderr, "getaddrinfo: failed\n");
             return 1;
         }
-        for (p = result; p != NULL; p = p->ai_next)
+        for (p = result; p != nullptr; p = p->ai_next)
         {
             sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
             if (sockfd == INVALID_SOCKET) { continue; }
@@ -234,11 +234,11 @@ namespace easywsclient {
             return readyState;
         }
 
-        void poll(int timeout) { // timeout in milliseconds
+        void poll(int timeout = 0) { // timeout in milliseconds
             if (readyState == CLOSED) {
                 if (timeout > 0) {
                     timeval tv = { timeout / 1000, (timeout % 1000) * 1000 };
-                    select(0, NULL, NULL, NULL, &tv);
+                    select(0, nullptr, nullptr, nullptr, &tv);
                 }
                 return;
             }
@@ -255,6 +255,11 @@ namespace easywsclient {
             while (true) {
                 // FD_ISSET(0, &rfds) will be true
                 int N = rxbuf.size();
+
+                if (N <= 0)
+                {
+                    break;
+                }
                 ssize_t ret;
                 rxbuf.resize(N + 1500);
                 ret = recv(sockfd, (char*)&rxbuf[0] + N, 1500, 0);
@@ -267,7 +272,7 @@ namespace easywsclient {
                     rxbuf.resize(N);
                     closesocket(sockfd);
                     readyState = CLOSED;
-                    fputs(ret < 0 ? "Connection error!\n" : "Connection closed!\n", stderr);
+                    fputs(ret < 0 ? "recv Connection error!\n" : "recv Connection closed!\n", stderr);
                     break;
                 }
                 else {
@@ -283,7 +288,8 @@ namespace easywsclient {
                 else if (ret <= 0) {
                     closesocket(sockfd);
                     readyState = CLOSED;
-                    fputs(ret < 0 ? "Connection error!\n" : "Connection closed!\n", stderr);
+
+                    fputs(ret < 0 ? "tx Connection error!\n" : "tx Connection closed!\n", stderr);
                     break;
                 }
                 else {
@@ -530,7 +536,7 @@ namespace easywsclient {
         socket_t sockfd = hostname_connect(host, port);
         if (sockfd == INVALID_SOCKET) {
             fprintf(stderr, "Unable to connect to %s:%d\n", host, port);
-            return NULL;
+            return nullptr;
         }
         {
             // XXX: this should be done non-blocking,
@@ -548,34 +554,34 @@ namespace easywsclient {
             if (!origin.empty()) {
                 snprintf(line, 256, "Origin: %s\r\n", origin.c_str()); ::send(sockfd, line, strlen(line), 0);
             }
-            snprintf(line, 256, "Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n"); ::send(sockfd, line, strlen(line), 0);
+            snprintf(line, 256, "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"); ::send(sockfd, line, strlen(line), 0);
             snprintf(line, 256, "Sec-WebSocket-Version: 13\r\n"); ::send(sockfd, line, strlen(line), 0);
             snprintf(line, 256, "\r\n"); ::send(sockfd, line, strlen(line), 0);
             for (i = 0; i < 2 || (i < 255 && line[i - 2] != '\r' && line[i - 1] != '\n'); ++i)
             {
                 if (recv(sockfd, line + i, 1, 0) == 0)
                 {
-                    return NULL;
+                    return nullptr;
                 }
             }
             line[i] = 0;
             if (i == 255)
             {
                 fprintf(stderr, "ERROR: Got invalid status line connecting to: %s\n", "ws://127.0.0.1:15881/feedbackBytes");
-                return NULL;
+                return nullptr;
             }
-            int status;
-            if (sscanf(line, "HTTP/1.1 %d", &status) != 1 || status != 101)
-            {
-                fprintf(stderr, "ERROR: Got bad status connecting to %s: %s", "ws://127.0.0.1:15881/feedbackBytes", line);
-                return NULL;
-            }
+//            int status;
+//            if (sscanf(line, "HTTP/1.1 %d", &status) != 1 || status != 101)
+//            {
+//                fprintf(stderr, "ERROR: Got bad status connecting to %s: %s", "ws://127.0.0.1:15881/feedbackBytes", line);
+//                return nullptr;
+//            }
             // TODO: verify response headers,
             while (true) {
                 for (i = 0; i < 2 || (i < 255 && line[i - 2] != '\r' && line[i - 1] != '\n'); ++i) {
                     if (recv(sockfd, line + i, 1, 0) == 0)
                     {
-                        return NULL;
+                        return nullptr;
                     }
                 }
                 if (line[0] == '\r' && line[1] == '\n')

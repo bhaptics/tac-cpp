@@ -7,16 +7,22 @@
 #include "model.hpp"
 #include "json.hpp"
 
-using namespace std;
-using json = nlohmann::json;
 namespace tactosy
 {
+    using namespace std;
+    using json = nlohmann::json;
     class Util
     {
     public:
-        static string readFile(string path)
+        static string readFile(const string& path)
         {
             ifstream file(path);
+
+            if (!file.good())
+            {
+                throw runtime_error("file not exists : " + path);
+            }
+
             string str;
             string file_contents;
             while (getline(file, str))
@@ -28,13 +34,7 @@ namespace tactosy
             return file_contents;
         }
 
-        template<class T, class V>
-        static bool containsKey(T key, map<T, V> &mapData)
-        {
-            return mapData.find(key) != mapData.end();
-        }
-
-        static TactosyFile parse(string path)
+        static TactosyFile parse(const string& path)
         {
             string jsonStr = readFile(path);
 
@@ -80,7 +80,7 @@ namespace tactosy
                     }
                     else
                     {
-                        throw "unknown mode : " + mode;
+                        throw runtime_error("unknown mode : " + mode);
                     }
 
                     if ("Right" == position)
@@ -97,7 +97,7 @@ namespace tactosy
                     }
                     else
                     {
-                        throw "unkown position " + position;
+                        throw runtime_error("unkown position " + position);
                     }
 
                     file.feedback[key].push_back(feedback);
