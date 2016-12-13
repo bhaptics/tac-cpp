@@ -5,7 +5,7 @@
 #include <string>
 #include <map>
 #include "model.hpp"
-#include "json.hpp"
+#include "thirdparty/json.hpp"
 
 namespace tactosy
 {
@@ -74,7 +74,7 @@ namespace tactosy
                     {
                         feedback.mode = PATH_MODE;
                     }
-                    else if ("DOT_MODE")
+                    else if ("DOT_MODE" == mode)
                     {
                         feedback.mode = DOT_MODE;
                     }

@@ -1,10 +1,11 @@
 #ifndef TACTOSY_HPP
 #define TACTOSY_HPP
 
-#include "easywsclient.hpp"
-#include "timer.hpp"
-#include "model.hpp"
-#include "util.hpp"
+#include "thirdparty/easywsclient.hpp"
+#include "common/timer.hpp"
+#include "common/model.hpp"
+#include "common/util.hpp"
+
 #ifdef _WIN32
 #pragma comment( lib, "ws2_32" )
 #include <WinSock2.h>
@@ -260,11 +261,21 @@ namespace tactosy
 
 
     public:
-        void registerFeedback(const string &key, const string &path)
+        int registerFeedback(const string &key, const string &path)
         {
-            TactosyFile file = Util::parse(path);
-            FeedbackSignal signal(file);
-            _registeredSignals[key] = signal;
+            try
+            {
+                TactosyFile file = Util::parse(path);
+                FeedbackSignal signal(file);
+                _registeredSignals[key] = signal;
+
+                return 0;
+            } catch(exception &e)
+            {
+                printf("Exception : %s\n", e.what());
+
+                return -1;
+            }
         }
 
         void init()
@@ -353,7 +364,7 @@ namespace tactosy
         {
             if (!Common::containsKey(key, _registeredSignals))
             {
-                printf("Key : %s is not registered.", key.c_str());
+                printf("Key : '%s' is not registered.", key.c_str());
 
                 return;
             }
