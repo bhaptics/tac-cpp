@@ -7,6 +7,7 @@ int main()
     manager.registerFeedback("path", "feedback/Pathmode.tactosy");
     manager.registerFeedback("dot", "feedback/Dotmode.tactosy");
     manager.registerFeedback("undefined", "feedback/Undefined.tactosy");
+    manager.registerFeedback("wrong", "feedback/Wrongformat.tactosy");
     manager.init();
    
     Sleep(300);
