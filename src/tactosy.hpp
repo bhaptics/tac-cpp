@@ -61,14 +61,12 @@ namespace tactosy
 
         void send(const vector<uint8_t> &message) const
         {
-            if (ws->getReadyState() != WebSocket::OPEN)
+            if (!ws)
             {
-                
-            } else
-            {
-                ws->sendBinary(message);
-                ws->poll();
+                return;
             }
+            ws->sendBinary(message);
+            ws->poll();
         }
 
         void updateActive(const string &key, const FeedbackSignal& signal)
@@ -91,6 +89,8 @@ namespace tactosy
             _activeSignals.clear();
             mtx.unlock();
         }
+
+        std::chrono::steady_clock::time_point prev;
 
         void doRepeat()
         {
@@ -282,7 +282,7 @@ namespace tactosy
         {
             function<void()> callback = std::bind(&TactosyManager::callbackFunc, this);
             timer.addTimerHandler(callback);
-            timer.start(_interval);
+            timer.start();
 
 #ifdef _WIN32
             INT rc;
@@ -295,8 +295,19 @@ namespace tactosy
             }
 #endif
 
-            ws = unique_ptr<WebSocket>(WebSocket::create());
-            assert(ws);
+            try
+            {
+                ws = unique_ptr<WebSocket>(WebSocket::create());
+
+                if (!ws)
+                {
+                    printf("connection failed.\n");
+                }
+            }
+            catch (exception &e)
+            {
+                printf("error \n");
+            }
 
             vector<uint8_t> values(_motorSize, 0);
 
@@ -410,6 +421,11 @@ namespace tactosy
             vector<uint8_t> values(_motorSize, 0);
             TactosyFeedback feedback(All, values, DOT_MODE);
             playFeedback(feedback);
+
+            if (!ws)
+            {
+                return;
+            }
 
             ws->close();
         }

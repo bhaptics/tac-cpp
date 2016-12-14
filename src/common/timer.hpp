@@ -7,9 +7,9 @@
 #include <mutex>
 #include <future>
 
-
 namespace tactosy
 {
+    using namespace std;
     class TactosyTimer
     {
     public:
@@ -18,11 +18,10 @@ namespace tactosy
             stop();
         }
 
-        void start(int _interval)
+        void start()
         {
             if (!started)
             {
-                interval = _interval;
                 started = true;
                 runner = std::thread(&TactosyTimer::workerFunc, this);
             }
@@ -45,18 +44,26 @@ namespace tactosy
         std::atomic<bool> started = false;
         std::function<void()> callbackFunc;
         int interval = 20;
+        int sleepTime = 2;
         std::deque<std::packaged_task<void()>> tasks;
+
+        std::chrono::steady_clock::time_point prev;
 
         void workerFunc()
         {
             while (started)
             {
-                if (callbackFunc)
+                std::chrono::steady_clock::time_point current = std::chrono::steady_clock::now();
+                
+                int values = std::chrono::duration_cast<std::chrono::milliseconds>(current - prev).count();
+    
+                if (callbackFunc && values >= interval )
                 {
+                    prev = current;
                     callbackFunc();
                 }
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+                std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
             }
         }
         std::thread runner;
