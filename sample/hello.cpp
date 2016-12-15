@@ -1,4 +1,4 @@
-#include "src/tactosy.hpp"
+#include "../src/tactosy.hpp"
 
 using namespace tactosy;
 int main() 
