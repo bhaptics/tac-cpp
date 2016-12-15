@@ -17,6 +17,7 @@ int main()
     // USE tactosy studio feedback file
     manager.sendSignal("dot");
     Sleep(2000);
+
     manager.sendSignal("path");
 
     Sleep(3000);
