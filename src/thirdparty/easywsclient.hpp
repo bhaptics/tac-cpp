@@ -128,16 +128,7 @@ namespace easywsclient {
         typedef enum readyStateValues { CLOSING, CLOSED, CONNECTING, OPEN } readyStateValues;
 
         // Factories:
-        static pointer create_dummy();
-        static pointer create(bool useMask, const std::string& origin);
-        static pointer create(const std::string& origin = std::string())
-        {
-            return create(true, origin);
-        }
-        static pointer from_url_no_mask(const std::string& origin = std::string())
-        {
-            return create(true, origin);
-        }
+        static pointer create(const std::string &host, int port, const std::string &path);
         // Interfaces:
         virtual ~WebSocket() { }
         virtual void poll(int timeout = 0) = 0; // timeout in milliseconds
@@ -227,7 +218,7 @@ namespace easywsclient {
         readyStateValues readyState;
         bool useMask;
 
-        _RealWebSocket(socket_t sockfd, bool useMask) : sockfd(sockfd), readyState(OPEN), useMask(useMask) {
+        _RealWebSocket(socket_t sockfd) : sockfd(sockfd), readyState(OPEN), useMask(useMask) {
         }
 
         readyStateValues getReadyState() const {
@@ -528,10 +519,11 @@ namespace easywsclient {
         void _dispatchBinary(BytesCallbackImp& callable) { }
     };
 
-    WebSocket::pointer  WebSocket::create(bool useMask, const std::string& origin) {
-        char host[128] = "127.0.0.1";
-        int port = 15881;
-        char path[128] = "feedbackBytes";
+    WebSocket::pointer  WebSocket::create(const std::string &hosts, int port, const std::string &_path) {
+
+        const char *host= hosts.c_str();
+        const char *path = _path.c_str();
+        std::string origin = "";
 
         socket_t sockfd = hostname_connect(host, port);
         if (sockfd == INVALID_SOCKET) {
@@ -598,15 +590,9 @@ namespace easywsclient {
 #else
         fcntl(sockfd, F_SETFL, O_NONBLOCK);
 #endif
-        fprintf(stderr, "Connected to: %s\n", "ws://127.0.0.1:15881/feedbackBytes");
-        return pointer(new _RealWebSocket(sockfd, useMask));
+        fprintf(stderr, "Connected to: ws://%s:%d/%s\n", host, port, path);
+        return pointer(new _RealWebSocket(sockfd));
     }
-
-    WebSocket::pointer WebSocket::create_dummy() {
-        static pointer dummy = pointer(new _DummyWebSocket);
-        return dummy;
-    }
-
 } // namespace easywsclient
 
 #endif /* EASYWSCLIENT_HPP_20120819_MIOFVASDTNUASZDQPLFD */

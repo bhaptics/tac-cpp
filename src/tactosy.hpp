@@ -30,6 +30,40 @@ namespace tactosy
         int _motorSize = 20;
         TactosyTimer timer;
 
+        string host = "127.0.0.1";
+        int port = 15881;
+        string path = "feedbackBytes";
+
+        int reconnectSec = 5;
+        std::chrono::steady_clock::time_point prevReconnect;
+
+        void reconnect()
+        {
+            if (!retryConnection)
+            {
+                return;
+            }
+
+            if (connectionCheck())
+            {
+                return;
+            }
+
+            std::chrono::steady_clock::time_point current = std::chrono::steady_clock::now();
+
+            int values = std::chrono::duration_cast<std::chrono::seconds>(current - prevReconnect).count();
+
+            if (values > reconnectSec)
+            {
+                auto tried = unique_ptr<WebSocket>(WebSocket::create(host, port, path));
+                if (tried)
+                {
+                    ws.reset(WebSocket::create(host, port, path));
+                }
+                prevReconnect = current;
+            }
+        }
+
         void playFeedback(const TactosyFeedback &feedback)
         {
             vector<uint8_t> message(_motorSize + 2, 0);
@@ -59,9 +93,25 @@ namespace tactosy
             send(message);
         }
 
-        void send(const vector<uint8_t> &message) const
+        bool connectionCheck()
         {
             if (!ws)
+            {
+                return false;
+            }
+
+            if (ws->getReadyState() == WebSocket::CLOSED)
+            {
+                ws.reset();
+                return false;
+            }
+
+            return true;
+        }
+
+        void send(const vector<uint8_t> &message)
+        {
+            if (!connectionCheck())
             {
                 return;
             }
@@ -90,10 +140,10 @@ namespace tactosy
             mtx.unlock();
         }
 
-        std::chrono::steady_clock::time_point prev;
-
         void doRepeat()
         {
+            reconnect();
+
             if (_activeSignals.size() == 0)
             {
                 if (_currentTime > 0)
@@ -261,6 +311,8 @@ namespace tactosy
 
 
     public:
+        bool retryConnection = true;
+
         int registerFeedback(const string &key, const string &path)
         {
             try
@@ -297,12 +349,9 @@ namespace tactosy
 
             try
             {
-                ws = unique_ptr<WebSocket>(WebSocket::create());
+                ws = unique_ptr<WebSocket>(WebSocket::create(host, port, path));
 
-                if (!ws)
-                {
-                    printf("connection failed.\n");
-                }
+                connectionCheck();
             }
             catch (exception &e)
             {
@@ -326,7 +375,7 @@ namespace tactosy
         {
             if (points.size() > 6 || points.size() <= 0)
             {
-                printf("number of points should be [1 ~ 6]");
+                printf("number of points should be [1 ~ 6]\n");
                 return;
             }
 
@@ -348,20 +397,20 @@ namespace tactosy
         {
             if (!Common::containsKey(key, _registeredSignals))
             {
-                printf("Key : %s is not registered.", key.c_str());
+                printf("Key : %s is not registered.\n", key.c_str());
 
                 return;
             }
 
             if (duration < 0.01f || duration > 100.0f)
             {
-                printf("not allowed duration %f", duration);
+                printf("not allowed duration %f\n", duration);
                 return;
             }
 
             if (intensity < 0.01f || intensity > 100.0f)
             {
-                printf("not allowed intensity %f", duration);
+                printf("not allowed intensity %f\n", duration);
                 return;
             }
 
@@ -375,7 +424,7 @@ namespace tactosy
         {
             if (!Common::containsKey(key, _registeredSignals))
             {
-                printf("Key : '%s' is not registered.", key.c_str());
+                printf("Key : '%s' is not registered.\n", key.c_str());
 
                 return;
             }
@@ -409,7 +458,7 @@ namespace tactosy
         {
             if (!Common::containsKey(key, _activeSignals))
             {
-                printf("feedback with key( %s ) is not playing.", key.c_str());
+                printf("feedback with key( %s ) is not playing.\n", key.c_str());
                 return;
             }
 

@@ -45,7 +45,6 @@ namespace tactosy
         std::function<void()> callbackFunc;
         int interval = 20;
         int sleepTime = 2;
-        std::deque<std::packaged_task<void()>> tasks;
 
         std::chrono::steady_clock::time_point prev;
 
