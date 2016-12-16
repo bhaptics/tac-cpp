@@ -1,0 +1,23 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Tactosy",
+	"Description": "",
+	"Category": "Haptic",
+	"CreatedBy": "bHaptics Co., Ltd.",
+	"CreatedByURL": "http://bhaptics.com",
+	"DocsURL": "http://github.com/bhaptics/tactosy-cpp",
+	"MarketplaceURL": "",
+	"SupportURL": "http://bhaptics.com",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "Tactosy",
+			"Type": "Developer",
+			"LoadingPhase": "Default"
+		}
+	]
+}

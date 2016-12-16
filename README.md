@@ -1,5 +1,7 @@
 ## Prerequisite
-* tactosy app installed (window and Mac)
+* tactosy app installed
+   * window (from 8.1) 
+   * Mac 
    * http://bhaptics.com/app.html
 
 ## To run sample code
