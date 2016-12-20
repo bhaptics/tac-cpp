@@ -2,7 +2,7 @@
 * Provides tactosy support for unreal engine 4.
 
 ### How to
-* Clone this in Engine\Plugins\Experimental directory.
+* Copy this in Engine\Plugins\Experimental directory.
 
 ### Issues/Todo
 Detail settings
