@@ -8,9 +8,12 @@ namespace tactosy
     using namespace std;
 
     enum Position {
-        Left,
-        Right,
-        All
+        All = 0, Left = 1, Right = 2,
+        Vest = 3,
+        Head = 4,
+        VestFront = 201, VestBack = 202,
+        GloveLeft = 203, GloveRight = 204,
+        Custom1 = 251, Custom2 = 252, Custom3 = 253, Custom4 = 254
     };
 
     enum FeeddbackMode {

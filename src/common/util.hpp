@@ -91,6 +91,22 @@ namespace tactosy
                     {
                         feedback.position = Left;
                     }
+                    else if ("Head" == position)
+                    {
+                        feedback.position = Head;
+                    }
+                    else if ("VestBack" == position)
+                    {
+                        feedback.position = VestBack;
+                    }
+                    else if ("VestFront" == position)
+                    {
+                        feedback.position = VestFront;
+                    }
+                    else if ("Vest" == position)
+                    {
+                        feedback.position = Vest;
+                    }
                     else if ("All" == position)
                     {
                         feedback.position = All;

@@ -74,7 +74,7 @@ examples/fuzzing_server_tls/fuzzing_server
 examples/wsperf/wsperf
 
 .sconsign.dblite
-
+.vs/
 build/
 doxygen/
 examples/wsperf/wsperf_client

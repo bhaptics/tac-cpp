@@ -76,14 +76,16 @@ namespace tactosy
                 message[0] = 2;
             }
 
-            if (feedback.position == Left)
-            {
-                message[1] = 1;
-            }
-            else if (feedback.position == Right)
-            {
-                message[1] = 2;
-            }
+
+            message[1] = (uint8_t)feedback.position;
+//            if (feedback.position == Left)
+//            {
+//                message[1] = 1;
+//            }
+//            else if (feedback.position == Right)
+//            {
+//                message[1] = 2;
+//            }
 
             for (int i = 0; i < _motorSize; i++)
             {
