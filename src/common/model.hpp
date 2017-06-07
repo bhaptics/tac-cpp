@@ -21,13 +21,60 @@ namespace tactosy
         DOT_MODE
     };
 
-    struct TactosyFeedback
+    struct DotPoint
+    {
+        int index;
+        int intensity;
+        DotPoint(int _index, int _intensity)
+        {
+            index = _index;
+            intensity = _intensity;
+        }
+    };
+
+    struct PathPoint
+    {
+        float x;
+        float y;
+        int intensity;
+
+        PathPoint(float _x, float _y, int _intensity)
+        {
+            x = _x;
+            y = _y;
+            intensity = _intensity;
+        }
+    };
+
+    struct HapticFeedbackFrame
+    {
+        vector<PathPoint> pathPoints;
+        vector<DotPoint> dotPoints;
+        int texture;
+        Position position;
+
+        HapticFeedbackFrame(Position _pos, const vector<PathPoint> &_pathPoints)
+        {
+            position = _pos;
+            pathPoints = _pathPoints;
+            texture = 0;
+        }
+
+        HapticFeedbackFrame(Position _pos, const vector<DotPoint> &_dotPoints)
+        {
+            position = _pos;
+            dotPoints = _dotPoints;
+            texture = 0;
+        }
+    };
+
+    struct HapticFeedback
     {
         Position position;
         FeeddbackMode mode;
         vector<uint8_t> values;
 
-        TactosyFeedback(Position _pos, const int _val[], FeeddbackMode _mod)
+        HapticFeedback(Position _pos, const int _val[], FeeddbackMode _mod)
         {
             position = _pos;
             mode = _mod;
@@ -38,7 +85,7 @@ namespace tactosy
             }
         }
 
-        TactosyFeedback(Position _pos, const vector<uint8_t> &_val, FeeddbackMode _mod)
+        HapticFeedback(Position _pos, const vector<uint8_t> &_val, FeeddbackMode _mod)
         {
             position = _pos;
             mode = _mod;
@@ -49,23 +96,9 @@ namespace tactosy
             }
         }
 
-        TactosyFeedback() : position(), mode()
+        HapticFeedback() : position(), mode()
         {
             values.assign(20, 0);
-        }
-    };
-
-    struct Point
-    {
-        float x;
-        float y;
-        float intensity;
-
-        Point(float _x, float _y, float _intensity)
-        {
-            x = _x;
-            y = _y;
-            intensity = _intensity;
         }
     };
 
@@ -74,7 +107,7 @@ namespace tactosy
         int intervalMillis;
         int size;
         int durationMillis;
-        map<int, vector<TactosyFeedback>> feedback;
+        map<int, vector<HapticFeedback>> feedback;
 
     };
 
@@ -88,15 +121,15 @@ namespace tactosy
         }
     };
 
-    class FeedbackSignal
+    class BufferedHapticFeedback
     {
     public:
-        FeedbackSignal() {}
-        map<int, vector<TactosyFeedback>> HapticFeedback;
+        BufferedHapticFeedback() {}
+        map<int, vector<HapticFeedback>> feedbackMap;
         int StartTime;
         int EndTime;
 
-        FeedbackSignal(TactosyFeedback feedback, int durationMillis, int interval)
+        BufferedHapticFeedback(HapticFeedback feedback, int durationMillis, int interval)
         {
             int i;
 
@@ -105,27 +138,32 @@ namespace tactosy
                 if (feedback.position == All)
                 {
 
-                    TactosyFeedback left(Left, feedback.values, feedback.mode);
-                    TactosyFeedback right(Right, feedback.values, feedback.mode);
-                    vector<TactosyFeedback> feedbacks = { left, right };
+                    HapticFeedback left(Left, feedback.values, feedback.mode);
+                    HapticFeedback right(Right, feedback.values, feedback.mode);
+                    HapticFeedback vBack(VestBack, feedback.values, feedback.mode);
+                    HapticFeedback vFront(VestFront, feedback.values, feedback.mode);
+                    HapticFeedback head(Head, feedback.values, feedback.mode);
                     int time = i * interval;
-                    HapticFeedback[time] = { left, right };
+                    feedbackMap[time] = { left, right, vBack, vFront, head };
                 }
                 else
                 {
-                    HapticFeedback[i*interval] = { feedback };
+                    feedbackMap[i * interval] = { feedback };
                 }
 
 
             }
             StartTime = -1;
-            vector<TactosyFeedback> f;
+            vector<HapticFeedback> f;
             int bytes[20] = { 0 };
             if (feedback.position == All)
             {
-                TactosyFeedback left(Left, bytes, feedback.mode);
-                TactosyFeedback right(Right, bytes, feedback.mode);
-                f = { left, right };
+                HapticFeedback left(Left, bytes, feedback.mode);
+                HapticFeedback right(Right, bytes, feedback.mode);
+                HapticFeedback vBack(VestBack, bytes, feedback.mode);
+                HapticFeedback vFront(VestFront, bytes, feedback.mode);
+                HapticFeedback head(Head, bytes, feedback.mode);
+                f = { left, right, vBack, vFront, head };
             }
             else
             {
@@ -133,20 +171,20 @@ namespace tactosy
 
             }
 
-            HapticFeedback[i * interval] = f;
+            feedbackMap[i * interval] = f;
             EndTime = i * interval;
         }
 
-        FeedbackSignal(TactosyFile tactosyFile)
+        BufferedHapticFeedback(TactosyFile tactosyFile)
         {
             StartTime = -1;
             EndTime = tactosyFile.durationMillis;
-            HapticFeedback = tactosyFile.feedback;
+            feedbackMap = tactosyFile.feedback;
         }
 
-        static FeedbackSignal Copy(const FeedbackSignal &signal, int interval, float intensityRatio, float durationRatio)
+        static BufferedHapticFeedback Copy(const BufferedHapticFeedback &signal, int interval, float intensityRatio, float durationRatio)
         {
-            FeedbackSignal feedbackSignal;
+            BufferedHapticFeedback feedbackSignal;
             feedbackSignal.EndTime = static_cast<int>(signal.EndTime * durationRatio / interval * interval) + interval;
             feedbackSignal.StartTime = -1;
 
@@ -155,15 +193,15 @@ namespace tactosy
             {
                 int keyTime = static_cast<int>(time / durationRatio) / interval*interval;
 
-                if (Common::containsKey(keyTime, signal.HapticFeedback)) // contains
+                if (Common::containsKey(keyTime, signal.feedbackMap)) // contains
                 {
-                    vector<TactosyFeedback> tactosyFeedbacks = signal.HapticFeedback.at(keyTime);
+                    vector<HapticFeedback> tactosyFeedbacks = signal.feedbackMap.at(keyTime);
 
-                    vector<TactosyFeedback> copiedFeedbacks(tactosyFeedbacks.size());
+                    vector<HapticFeedback> copiedFeedbacks(tactosyFeedbacks.size());
 
                     for (size_t i = 0; i < tactosyFeedbacks.size(); i++)
                     {
-                        TactosyFeedback tactosyFeedback = tactosyFeedbacks[i];
+                        HapticFeedback tactosyFeedback = tactosyFeedbacks[i];
                         int values[20];
                         if (tactosyFeedback.mode == DOT_MODE)
                         {
@@ -205,9 +243,9 @@ namespace tactosy
                                 values[realIndex] = val;
                             }
                         }
-                        TactosyFeedback feedback(tactosyFeedback.position, values, tactosyFeedback.mode);
+                        HapticFeedback feedback(tactosyFeedback.position, values, tactosyFeedback.mode);
                         copiedFeedbacks[i] = feedback;
-                        feedbackSignal.HapticFeedback[time] = copiedFeedbacks;
+                        feedbackSignal.feedbackMap[time] = copiedFeedbacks;
                     }
                 }
             }

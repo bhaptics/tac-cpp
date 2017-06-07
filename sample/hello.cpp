@@ -13,35 +13,35 @@ int main()
    
     Sleep(300);
 
-//    manager.sendSignal("undefined");
-//	
-//    // USE tactosy studio feedback file
-//    manager.sendSignal("dot");
-//    Sleep(2000);
-//
-//    manager.sendSignal("path");
-//
-//    Sleep(3000);
-//
-//    manager.sendSignal("head");
-//
-//    Sleep(10000);
+    manager.submitRegistered("undefined");
+	
+    // USE tactosy studio feedback file
+    manager.submitRegistered("dot");
+    Sleep(2000);
 
-//    // Manual control
-//    vector<uint8_t> values(20, 0);
-//    values[3] = 100;
-//    manager.sendSignal("dotTest", Right, values, 300);
-//
-//    Sleep(500);
-//
-//    vector<Point> points;
-//    Point point(0.8f, 0.6f, 0.5f);
-//    points.push_back(point);
-//
-//    manager.sendSignal("pathTest", Right, points, 300);
-//    Sleep(500);
-//
-//
+    manager.submitRegistered("path");
+
+    Sleep(3000);
+
+    manager.submitRegistered("head");
+
+    Sleep(3000);
+
+    // Manual control
+    vector<uint8_t> values(20, 0);
+    values[3] = 100;
+    manager.submit("dotTest", Right, values, 300);
+
+    Sleep(500);
+
+    vector<PathPoint> points;
+    PathPoint point(0.8f, 0.6f, 50);
+    points.push_back(point);
+
+    manager.submit("pathTest", Right, points, 300);
+    Sleep(500);
+
+
     // Long running test
     vector<uint8_t> onValues(20, 0);
     onValues[3] = 100;
@@ -51,10 +51,12 @@ int main()
 
     for(int i = 0 ; i < 1000 ; i++)
     {
-        manager.sendSignal("dotTest", Right, onValues, 20);
+        manager.submit("dotTest", Right, onValues, 20);
+        manager.submit("dotLeft", Left, onValues, 20);
 
         Sleep(40);
-        manager.sendSignal("dotTest", Right, noneValues, 20);
+        manager.submit("dotTest", Right, noneValues, 20);
+        manager.submit("dotLeft", Left, noneValues, 20);
         Sleep(40);
     }
 

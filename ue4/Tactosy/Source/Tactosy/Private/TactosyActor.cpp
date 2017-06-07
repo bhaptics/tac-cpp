@@ -33,10 +33,10 @@ void ATactosyActor::Tick( float DeltaTime )
 	Super::Tick( DeltaTime );
 }
 
-void ATactosyActor::SendSignal(const FString &key)
+void ATactosyActor::SubmitRegistered(const FString &key)
 {
     std::string stdKey(TCHAR_TO_UTF8(*key));
-    tactosyManager.sendSignal(stdKey);
+    tactosyManager.submitRegistered(stdKey);
 }
 
 void ATactosyActor::RegisterFeeback(const FString &key, const FString &path)

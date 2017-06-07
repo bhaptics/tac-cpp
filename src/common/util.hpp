@@ -57,7 +57,7 @@ namespace tactosy
                 json value = kv.second;
 
                 for (auto& tactosyFeedbackJson : value) {
-                    TactosyFeedback feedback;
+                    HapticFeedback feedback;
 
                     string mode = tactosyFeedbackJson["mode"].get<string>();
                     string position = tactosyFeedbackJson["position"].get<string>();
