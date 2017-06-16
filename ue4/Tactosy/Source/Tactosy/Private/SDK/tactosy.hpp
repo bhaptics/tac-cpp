@@ -18,7 +18,7 @@ namespace tactosy
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))  
     using namespace std;
     using easywsclient::WebSocket;
-    class TactosyManager
+    class HapticPlayer
     {
         unique_ptr<WebSocket> ws;
         
@@ -374,7 +374,7 @@ namespace tactosy
 
         void init()
         {
-            function<void()> callback = std::bind(&TactosyManager::callbackFunc, this);
+            function<void()> callback = std::bind(&HapticPlayer::callbackFunc, this);
             timer.addTimerHandler(callback);
             timer.start();
 
@@ -477,6 +477,9 @@ namespace tactosy
             if (!Common::containsKey(key, _activeSignals))
             {
                 updateActive(key, signal);
+            } else
+            {
+                _activeSignals.at(key).StartTime = -1;
             }
             
         }
