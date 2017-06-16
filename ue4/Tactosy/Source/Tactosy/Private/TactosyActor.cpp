@@ -6,7 +6,7 @@
 #include "SDK/tactosy.hpp"
 #include "HideWindowsPlatformTypes.h"
 
-tactosy::TactosyManager tactosyManager;
+tactosy::HapticPlayer hapticPlayer;
 
 // Sets default values
 ATactosyActor::ATactosyActor()
@@ -19,12 +19,12 @@ ATactosyActor::ATactosyActor()
 void ATactosyActor::BeginPlay()
 {
 	Super::BeginPlay();
-    tactosyManager.init();
+    hapticPlayer.init();
 }
 
 void ATactosyActor::Destroyed()
 {
-    tactosyManager.destroy();
+    hapticPlayer.destroy();
 }
 
 // Called every frame
@@ -36,7 +36,7 @@ void ATactosyActor::Tick( float DeltaTime )
 void ATactosyActor::SubmitRegistered(const FString &key)
 {
     std::string stdKey(TCHAR_TO_UTF8(*key));
-    tactosyManager.submitRegistered(stdKey);
+    hapticPlayer.submitRegistered(stdKey);
 }
 
 void ATactosyActor::RegisterFeeback(const FString &key, const FString &path)
@@ -52,6 +52,6 @@ void ATactosyActor::RegisterFeeback(const FString &key, const FString &path)
         return;
     }
 
-    tactosyManager.registerFeedback(stdKey, stdPath);
+    hapticPlayer.registerFeedback(stdKey, stdPath);
 }
 

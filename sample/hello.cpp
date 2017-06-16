@@ -3,12 +3,14 @@
 using namespace tactosy;
 int main() 
 {
-    TactosyManager manager;
+    HapticPlayer manager;
     manager.registerFeedback("path", "feedback/Pathmode.tactosy");
     manager.registerFeedback("dot", "feedback/Dotmode.tactosy");
     manager.registerFeedback("undefined", "feedback/Undefined.tactosy");
     manager.registerFeedback("head", "feedback/head.tactosy");
     manager.registerFeedback("wrong", "feedback/Wrongformat.tactosy");
+    manager.registerFeedback("Headache", "feedback/Headache.tactosy");
+    manager.registerFeedback("Head2", "feedback/Head2.tactosy");
     manager.init();
    
     Sleep(300);
@@ -22,6 +24,12 @@ int main()
     manager.submitRegistered("path");
 
     Sleep(3000);
+
+    manager.submitRegistered("Headache");
+    Sleep(2000);
+
+    manager.submitRegistered("Headache");
+    Sleep(2000);
 
     manager.submitRegistered("head");
 
