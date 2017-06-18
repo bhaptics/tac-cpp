@@ -24,10 +24,10 @@ public:
     virtual void Destroyed() override;
 
     UFUNCTION(BlueprintCallable, 
-        meta = (DisplayName = "Send tactosy signal by key", 
+        meta = (DisplayName = "Submit Registered feedback with key", 
             Keywords = "Tactosy"), 
                 Category = "Tactosy")
-    void SendSignal(const FString &key);
+    void SubmitRegistered(const FString &key);
 
     UFUNCTION(BlueprintCallable,
         meta = (DisplayName = "Register tactosy feedback",

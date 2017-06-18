@@ -18,12 +18,12 @@ namespace tactosy
 #define MAX(X,Y) ((X) > (Y) ? (X) : (Y))  
     using namespace std;
     using easywsclient::WebSocket;
-    class TactosyManager
+    class HapticPlayer
     {
         unique_ptr<WebSocket> ws;
         
-        map<string, FeedbackSignal> _registeredSignals;
-        map<string, FeedbackSignal> _activeSignals;
+        map<string, BufferedHapticFeedback> _registeredSignals;
+        map<string, BufferedHapticFeedback> _activeSignals;
         mutex mtx;
         int _currentTime = 0;
         int _interval = 20;
@@ -64,7 +64,7 @@ namespace tactosy
             }
         }
 
-        void playFeedback(const TactosyFeedback &feedback)
+        void playFeedback(const HapticFeedback &feedback)
         {
             vector<uint8_t> message(_motorSize + 2, 0);
             if (feedback.mode == PATH_MODE)
@@ -76,14 +76,7 @@ namespace tactosy
                 message[0] = 2;
             }
 
-            if (feedback.position == Left)
-            {
-                message[1] = 1;
-            }
-            else if (feedback.position == Right)
-            {
-                message[1] = 2;
-            }
+            message[1] = (uint8_t)feedback.position;
 
             for (int i = 0; i < _motorSize; i++)
             {
@@ -119,7 +112,7 @@ namespace tactosy
             ws->poll();
         }
 
-        void updateActive(const string &key, const FeedbackSignal& signal)
+        void updateActive(const string &key, const BufferedHapticFeedback& signal)
         {
             mtx.lock();
             _activeSignals[key] = signal;
@@ -150,10 +143,16 @@ namespace tactosy
                 {
                     _currentTime = 0;
                     vector<uint8_t> bytes(_motorSize, 0);
-                    TactosyFeedback feedback(Right, bytes, DOT_MODE);
-                    TactosyFeedback Leftfeedback(Left, bytes, DOT_MODE);
-                    playFeedback(feedback);
-                    playFeedback(Leftfeedback);
+                    HapticFeedback rightFeedback(Right, bytes, DOT_MODE);
+                    HapticFeedback leftFeedback(Left, bytes, DOT_MODE);
+                    HapticFeedback vestFrontfeedback(VestFront, bytes, DOT_MODE);
+                    HapticFeedback vestBackFeedback(VestBack, bytes, DOT_MODE);
+                    HapticFeedback headFeedback(Head, bytes, DOT_MODE);
+                    playFeedback(rightFeedback);
+                    playFeedback(leftFeedback);
+                    playFeedback(vestFrontfeedback);
+                    playFeedback(vestBackFeedback);
+                    playFeedback(headFeedback);
                 }
 
                 return;
@@ -170,6 +169,14 @@ namespace tactosy
             bool dotModeRightActive = false;
             bool pathModeActiveLeft = false;
             bool pathModeActiveRight = false;
+
+            map<Position, vector<HapticFeedback>> map;
+            vector<HapticFeedback> left, right, vFront, vBack, head;
+            map[Left] = left;
+            map[Right] = right;
+            map[VestFront] = vFront;
+            map[VestBack] = vBack;
+            map[Head] = head;
 
             mtx.lock();
             for (auto keyPair = _activeSignals.begin(); keyPair != _activeSignals.end(); ++keyPair)
@@ -189,74 +196,143 @@ namespace tactosy
                 }
                 else
                 {
-                    if (Common::containsKey(timePast, keyPair->second.HapticFeedback))
+                    if (Common::containsKey(timePast, keyPair->second.feedbackMap))
                     {
-                        auto hapticFeedbackData = keyPair->second.HapticFeedback.at(timePast);
+                        auto hapticFeedbackData = keyPair->second.feedbackMap.at(timePast);
                         for (auto &feedback : hapticFeedbackData)
                         {
-                            if (feedback.mode == PATH_MODE && feedback.position == Left)
-                            {
-                                int prevSize = pathModeSignalLeft[0];
-
-                                vector<uint8_t> data = feedback.values;
-                                int size = data[0];
-                                if (prevSize + size > 6)
-                                {
-                                    continue;
-                                }
-
-                                pathModeSignalLeft[0] = prevSize + size;
-
-                                for (int i = prevSize; i < prevSize + size; i++)
-                                {
-                                    pathModeSignalLeft[3 * i + 1] = data[3 * (i - prevSize) + 1];
-                                    pathModeSignalLeft[3 * i + 2] = data[3 * (i - prevSize) + 2];
-                                    pathModeSignalLeft[3 * i + 3] = data[3 * (i - prevSize) + 3];
-                                }
-
-                                pathModeActiveLeft = true;
-                            }
-                            else if (feedback.mode == PATH_MODE && feedback.position == Right)
-                            {
-                                int prevSize = pathModeSignalRight[0];
-
-                                vector<uint8_t> data = feedback.values;
-                                int size = data[0];
-                                if (prevSize + size > 6)
-                                {
-                                    continue;
-                                }
-
-                                pathModeSignalRight[0] = prevSize + size;
-
-                                for (int i = prevSize; i < prevSize + size; i++)
-                                {
-                                    pathModeSignalRight[3 * i + 1] = data[3 * (i - prevSize) + 1];
-                                    pathModeSignalRight[3 * i + 2] = data[3 * (i - prevSize) + 2];
-                                    pathModeSignalRight[3 * i + 3] = data[3 * (i - prevSize) + 3];
-                                }
-
-                                pathModeActiveRight = true;
-                            }
-                            else if (feedback.mode == DOT_MODE && feedback.position == Left)
-                            {
-                                for (int i = 0; i < _motorSize; i++)
-                                {
-                                    dotModeSignalLeft[i] += feedback.values[i];
-                                }
-
-                                dotModeLeftActive = true;
-                            }
-                            else if (feedback.mode == DOT_MODE && feedback.position == Right)
-                            {
-                                for (int i = 0; i < _motorSize; i++)
-                                {
-                                    dotModeSignalRight[i] += feedback.values[i];
-                                }
-                                dotModeRightActive = true;
-                            }
+                            map[feedback.position].push_back(feedback);
+//                            if (feedback.mode == PATH_MODE && feedback.position == Left)
+//                            {
+//                                int prevSize = pathModeSignalLeft[0];
+//
+//                                vector<uint8_t> data = feedback.values;
+//                                int size = data[0];
+//                                if (prevSize + size > 6)
+//                                {
+//                                    continue;
+//                                }
+//
+//                                pathModeSignalLeft[0] = prevSize + size;
+//
+//                                for (int i = prevSize; i < prevSize + size; i++)
+//                                {
+//                                    pathModeSignalLeft[3 * i + 1] = data[3 * (i - prevSize) + 1];
+//                                    pathModeSignalLeft[3 * i + 2] = data[3 * (i - prevSize) + 2];
+//                                    pathModeSignalLeft[3 * i + 3] = data[3 * (i - prevSize) + 3];
+//                                }
+//
+//                                pathModeActiveLeft = true;
+//                            }
+//                            else if (feedback.mode == PATH_MODE && feedback.position == Right)
+//                            {
+//                                int prevSize = pathModeSignalRight[0];
+//
+//                                vector<uint8_t> data = feedback.values;
+//                                int size = data[0];
+//                                if (prevSize + size > 6)
+//                                {
+//                                    continue;
+//                                }
+//
+//                                pathModeSignalRight[0] = prevSize + size;
+//
+//                                for (int i = prevSize; i < prevSize + size; i++)
+//                                {
+//                                    pathModeSignalRight[3 * i + 1] = data[3 * (i - prevSize) + 1];
+//                                    pathModeSignalRight[3 * i + 2] = data[3 * (i - prevSize) + 2];
+//                                    pathModeSignalRight[3 * i + 3] = data[3 * (i - prevSize) + 3];
+//                                }
+//
+//                                pathModeActiveRight = true;
+//                            }
+//                            else if (feedback.mode == DOT_MODE && feedback.position == Left)
+//                            {
+//                                for (int i = 0; i < _motorSize; i++)
+//                                {
+//                                    dotModeSignalLeft[i] += feedback.values[i];
+//                                }
+//
+//                                dotModeLeftActive = true;
+//                            }
+//                            else if (feedback.mode == DOT_MODE && feedback.position == Right)
+//                            {
+//                                for (int i = 0; i < _motorSize; i++)
+//                                {
+//                                    dotModeSignalRight[i] += feedback.values[i];
+//                                }
+//                                dotModeRightActive = true;
+//                            }
                         }
                     }
+                }
+            }
+
+            for (auto keyPair = map.begin(); keyPair != map.end(); ++keyPair)
+            {
+                auto pos = keyPair->first;
+                auto feeds = keyPair->second;
+                vector<uint8_t> values(_motorSize, 0);
+                vector<uint8_t> path_values(_motorSize, 0);
+
+                bool isDot = false;
+                bool isPath = false;
+                for(auto &feed : feeds)
+                {
+                    auto mode = feed.mode;
+
+                    if (mode == DOT_MODE)
+                    {
+                        for (int i = 0; i < _motorSize; i++)
+                        {
+                            values[i] += feed.values[i];
+
+                            if (values[i] > 100)
+                            {
+                                values[i] = 100;
+                            }
+                        }
+                        isDot = true;
+                    } else if (mode == PATH_MODE)
+                    {
+                        int prevSize = path_values[0];
+                        
+                        vector<uint8_t> data = feed.values;
+                        int size = data[0];
+                        if (prevSize + size > 6)
+                        {
+                            continue;
+                        }
+                        
+                        path_values[0] = prevSize + size;
+                        
+                        for (int i = prevSize; i < prevSize + size; i++)
+                        {
+                            path_values[3 * i + 1] = data[3 * (i - prevSize) + 1];
+                            path_values[3 * i + 2] = data[3 * (i - prevSize) + 2];
+                            path_values[3 * i + 3] = data[3 * (i - prevSize) + 3];
+                        }
+
+                        isPath = true;
+                    }
+                }
+                if (isDot)
+                {
+                    HapticFeedback feedback1(pos, values, DOT_MODE);
+                    playFeedback(feedback1);
+                }
+                
+                if (isPath)
+                {
+                    HapticFeedback feedback2(pos, path_values, PATH_MODE);
+                    playFeedback(feedback2);
+
+                }
+
+                if (!isDot && !isPath)
+                {
+                    HapticFeedback feedback1(pos, values, DOT_MODE);
+                    playFeedback(feedback1);
                 }
             }
 
@@ -265,40 +341,6 @@ namespace tactosy
             for (auto &key : expiredSignals)
             {
                 remove(key);
-            }
-
-            if (dotModeLeftActive)
-            {
-                TactosyFeedback feedback(Left, dotModeSignalLeft, DOT_MODE);
-                playFeedback(feedback);
-            }
-            else if (pathModeActiveLeft)
-            {
-                TactosyFeedback feedback(Left, pathModeSignalLeft, PATH_MODE);
-                playFeedback(feedback);
-            }
-            else
-            {
-                vector<uint8_t> values(_motorSize, 0);
-                TactosyFeedback feedback(Left, values, DOT_MODE);
-                playFeedback(feedback);
-            }
-
-            if (dotModeRightActive)
-            {
-                TactosyFeedback feedback(Right, dotModeSignalRight, DOT_MODE);
-                playFeedback(feedback);
-            }
-            else if (pathModeActiveRight)
-            {
-                TactosyFeedback feedback(Right, pathModeSignalRight, PATH_MODE);
-                playFeedback(feedback);
-            }
-            else
-            {
-                vector<uint8_t> values(_motorSize, 0);
-                TactosyFeedback feedback(Right, values, DOT_MODE);
-                playFeedback(feedback);
             }
 
             _currentTime += _interval;
@@ -318,7 +360,7 @@ namespace tactosy
             try
             {
                 TactosyFile file = Util::parse(path);
-                FeedbackSignal signal(file);
+                BufferedHapticFeedback signal(file);
                 _registeredSignals[key] = signal;
 
                 return 0;
@@ -332,7 +374,7 @@ namespace tactosy
 
         void init()
         {
-            function<void()> callback = std::bind(&TactosyManager::callbackFunc, this);
+            function<void()> callback = std::bind(&HapticPlayer::callbackFunc, this);
             timer.addTimerHandler(callback);
             timer.start();
 
@@ -360,18 +402,18 @@ namespace tactosy
 
             vector<uint8_t> values(_motorSize, 0);
 
-            TactosyFeedback feedback(Right, values, DOT_MODE);
+            HapticFeedback feedback(Right, values, DOT_MODE);
             playFeedback(feedback);
         }
 
-        void sendSignal(const string &key, Position position, const vector<uint8_t> &motorBytes, int durationMillis)
+        void submit(const string &key, Position position, const vector<uint8_t> &motorBytes, int durationMillis)
         {
-            TactosyFeedback feedback(position, motorBytes, DOT_MODE);
-            FeedbackSignal signal(feedback, durationMillis, _interval);
+            HapticFeedback feedback(position, motorBytes, DOT_MODE);
+            BufferedHapticFeedback signal(feedback, durationMillis, _interval);
             updateActive(key, signal);
         }
 
-        void sendSignal(const string &key, Position position, const vector<Point> &points, int durationMillis)
+        void submit(const string &key, Position position, const vector<PathPoint> &points, int durationMillis)
         {
             if (points.size() > 6 || points.size() <= 0)
             {
@@ -385,15 +427,15 @@ namespace tactosy
             {
                 bytes[3 * i + 1] = static_cast<int>(MIN(40, MAX(0, points[i].x * 40))); // x
                 bytes[3 * i + 2] = static_cast<int>(MIN(30, MAX(0, points[i].y * 30)));
-                bytes[3 * i + 3] = static_cast<int>(MIN(100, MAX(0, points[i].intensity * 100)));
+                bytes[3 * i + 3] = static_cast<int>(MIN(100, MAX(0, points[i].intensity)));
             }
 
-            TactosyFeedback feedback(position, bytes, PATH_MODE);
-            FeedbackSignal signal(feedback, durationMillis, _interval);
+            HapticFeedback feedback(position, bytes, PATH_MODE);
+            BufferedHapticFeedback signal(feedback, durationMillis, _interval);
             updateActive(key, signal);
         }
 
-        void sendSignal(const string &key, float intensity, float duration)
+        void submitRegistered(const string &key, float intensity, float duration)
         {
             if (!Common::containsKey(key, _registeredSignals))
             {
@@ -414,13 +456,13 @@ namespace tactosy
                 return;
             }
 
-            FeedbackSignal signal = _registeredSignals.at(key);
+            BufferedHapticFeedback signal = _registeredSignals.at(key);
 
-            FeedbackSignal copiedFeedbackSignal = FeedbackSignal::Copy(signal, _interval, intensity, duration);
+            BufferedHapticFeedback copiedFeedbackSignal = BufferedHapticFeedback::Copy(signal, _interval, intensity, duration);
             updateActive(key, copiedFeedbackSignal);
         }
 
-        void sendSignal(const string &key)
+        void submitRegistered(const string &key)
         {
             if (!Common::containsKey(key, _registeredSignals))
             {
@@ -435,6 +477,9 @@ namespace tactosy
             if (!Common::containsKey(key, _activeSignals))
             {
                 updateActive(key, signal);
+            } else
+            {
+                _activeSignals.at(key).StartTime = -1;
             }
             
         }
@@ -468,7 +513,7 @@ namespace tactosy
         void destroy()
         {
             vector<uint8_t> values(_motorSize, 0);
-            TactosyFeedback feedback(All, values, DOT_MODE);
+            HapticFeedback feedback(All, values, DOT_MODE);
             playFeedback(feedback);
 
             if (!ws)

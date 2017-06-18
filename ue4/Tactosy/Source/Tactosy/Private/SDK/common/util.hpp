@@ -57,7 +57,7 @@ namespace tactosy
                 json value = kv.second;
 
                 for (auto& tactosyFeedbackJson : value) {
-                    TactosyFeedback feedback;
+                    HapticFeedback feedback;
 
                     string mode = tactosyFeedbackJson["mode"].get<string>();
                     string position = tactosyFeedbackJson["position"].get<string>();
@@ -90,6 +90,22 @@ namespace tactosy
                     else if ("Left" == position)
                     {
                         feedback.position = Left;
+                    }
+                    else if ("Head" == position)
+                    {
+                        feedback.position = Head;
+                    }
+                    else if ("VestBack" == position)
+                    {
+                        feedback.position = VestBack;
+                    }
+                    else if ("VestFront" == position)
+                    {
+                        feedback.position = VestFront;
+                    }
+                    else if ("Vest" == position)
+                    {
+                        feedback.position = Vest;
                     }
                     else if ("All" == position)
                     {

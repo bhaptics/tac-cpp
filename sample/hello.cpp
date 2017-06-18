@@ -3,37 +3,50 @@
 using namespace tactosy;
 int main() 
 {
-    TactosyManager manager;
+    HapticPlayer manager;
     manager.registerFeedback("path", "feedback/Pathmode.tactosy");
     manager.registerFeedback("dot", "feedback/Dotmode.tactosy");
     manager.registerFeedback("undefined", "feedback/Undefined.tactosy");
+    manager.registerFeedback("head", "feedback/head.tactosy");
     manager.registerFeedback("wrong", "feedback/Wrongformat.tactosy");
+    manager.registerFeedback("Headache", "feedback/Headache.tactosy");
+    manager.registerFeedback("Head2", "feedback/Head2.tactosy");
     manager.init();
    
     Sleep(300);
 
-    manager.sendSignal("undefined");
+    manager.submitRegistered("undefined");
 	
     // USE tactosy studio feedback file
-    manager.sendSignal("dot");
+    manager.submitRegistered("dot");
     Sleep(2000);
 
-    manager.sendSignal("path");
+    manager.submitRegistered("path");
+
+    Sleep(3000);
+
+    manager.submitRegistered("Headache");
+    Sleep(2000);
+
+    manager.submitRegistered("Headache");
+    Sleep(2000);
+
+    manager.submitRegistered("head");
 
     Sleep(3000);
 
     // Manual control
     vector<uint8_t> values(20, 0);
     values[3] = 100;
-    manager.sendSignal("dotTest", Right, values, 300);
+    manager.submit("dotTest", Right, values, 300);
 
     Sleep(500);
 
-    vector<Point> points;
-    Point point(0.8f, 0.6f, 0.5f);
+    vector<PathPoint> points;
+    PathPoint point(0.8f, 0.6f, 50);
     points.push_back(point);
 
-    manager.sendSignal("pathTest", Right, points, 300);
+    manager.submit("pathTest", Right, points, 300);
     Sleep(500);
 
 
@@ -46,10 +59,12 @@ int main()
 
     for(int i = 0 ; i < 1000 ; i++)
     {
-        manager.sendSignal("dotTest", Right, onValues, 20);
+        manager.submit("dotTest", Right, onValues, 20);
+        manager.submit("dotLeft", Left, onValues, 20);
 
         Sleep(40);
-        manager.sendSignal("dotTest", Right, noneValues, 20);
+        manager.submit("dotTest", Right, noneValues, 20);
+        manager.submit("dotLeft", Left, noneValues, 20);
         Sleep(40);
     }
 
