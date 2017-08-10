@@ -6,8 +6,10 @@ public class Tactosy : ModuleRules
 {
 	public Tactosy(TargetInfo Target)
 	{
-		
-		PublicIncludePaths.AddRange(
+
+        //UEBuildConfiguration.bForceEnableExceptions = true;
+
+        PublicIncludePaths.AddRange(
 			new string[] {
 				"Tactosy/Public"
 				// ... add public include paths required here ...
@@ -22,11 +24,11 @@ public class Tactosy : ModuleRules
 			}
 			);
 			
-		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
+                //"System",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -39,6 +41,7 @@ public class Tactosy : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+                //"Sockets",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
@@ -50,5 +53,7 @@ public class Tactosy : ModuleRules
 				// ... add any modules that your module loads dynamically here ...
 			}
 			);
+
+        //PublicAdditionalLibraries.Add("../../../VRGunToolkit/Plugins/Tactosy/bHapticUtility.dll");
 	}
 }

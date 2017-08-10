@@ -44,7 +44,7 @@ namespace tactosy
         std::atomic<bool> started = false;
         std::function<void()> callbackFunc;
         int interval = 20;
-        int sleepTime = 2;
+        int sleepTime = 1;
 
         std::chrono::steady_clock::time_point prev;
 

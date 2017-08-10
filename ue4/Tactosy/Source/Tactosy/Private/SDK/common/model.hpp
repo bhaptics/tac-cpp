@@ -3,6 +3,8 @@
 
 #include <map>
 
+using nlohmann::json;
+
 namespace tactosy
 {
     using namespace std;
@@ -254,6 +256,46 @@ namespace tactosy
         }
 
     };
+
+	void to_json(json& j, const PathPoint& point)
+	{
+		j = json{ { "X",point.x },{ "Y",point.y },{ "Intensity",point.intensity } };
+	}
+
+	void to_json(json& j, const DotPoint& point)
+	{
+		j = json{ { "Index",point.index },{ "Intensity",point.intensity } };
+	}
+
+	void to_json(json& j, const HapticFeedbackFrame& feedback)
+	{
+		json jDotPoints, jPathPoints;
+		vector<std::string> tempVec1, tempVec2;
+
+		vector<json> jVec1, jVec2;
+
+		for (int i = 0; i < feedback.pathPoints.size(); i++)
+		{
+			json jTemp;
+			to_json(jTemp, feedback.pathPoints[i]);
+			jVec1.push_back(jTemp);
+			tempVec1.push_back(jTemp.dump());
+		}
+
+		jPathPoints = tempVec1;
+
+		for (int i = 0; i < feedback.dotPoints.size(); i++)
+		{
+			json jTemp;
+			to_json(jTemp, feedback.dotPoints[i]);
+			jVec2.push_back(jTemp);
+			tempVec2.push_back(jTemp.dump());
+		}
+
+		jDotPoints = tempVec2;
+
+		j = json{ { "Position",feedback.position },{ "Texture",feedback.texture },{ "PathPoints",jVec1 } ,{ "DotPoints", jVec2 } };
+	}
 }
 
 #endif

@@ -79,6 +79,7 @@ typedef int socket_t;
 
 #include <string>
 #include <vector>
+//#include <vld.h>
 
 namespace easywsclient {
 
@@ -90,6 +91,11 @@ namespace easywsclient {
     {
         virtual void operator()(const std::vector<uint8_t>& message) = 0;
     };
+
+	struct CharCallbackImp
+	{
+		virtual void operator()(const char* message) = 0;
+	};
 
     socket_t hostname_connect(const std::string& hostname, int port) {
         struct addrinfo hints;
@@ -118,6 +124,9 @@ namespace easywsclient {
             sockfd = INVALID_SOCKET;
         }
         freeaddrinfo(result);
+
+
+
         return sockfd;
     }
 
@@ -152,6 +161,19 @@ namespace easywsclient {
             _dispatch(callback);
         }
 
+		template<class Callable>
+		void dispatchChar(Callable callable)
+			// For callbacks that accept a Char argument.
+		{ // N.B. this is compatible with both C++11 lambdas, functors and C function pointers
+			struct _Callback : public CharCallbackImp {
+				Callable& callable;
+				_Callback(Callable& callable) : callable(callable) { }
+				void operator()(const char* message) { callable(message); }
+			};
+			_Callback callback(callable);
+			_dispatchChar(callback);
+		}
+
         template<class Callable>
         void dispatchBinary(Callable callable)
             // For callbacks that accept a std::vector<uint8_t> argument.
@@ -168,6 +190,7 @@ namespace easywsclient {
     protected:
         virtual void _dispatch(CallbackImp& callable) = 0;
         virtual void _dispatchBinary(BytesCallbackImp& callable) = 0;
+		virtual void _dispatchChar(CharCallbackImp& callable) = 0;
     };
 
     class _RealWebSocket : public WebSocket
@@ -210,6 +233,8 @@ namespace easywsclient {
             uint8_t masking_key[4];
         };
 
+//		std::mutex mtx;
+
         std::vector<uint8_t> rxbuf;
         std::vector<uint8_t> txbuf;
         std::vector<uint8_t> receivedData;
@@ -246,11 +271,6 @@ namespace easywsclient {
             while (true) {
                 // FD_ISSET(0, &rfds) will be true
                 int N = rxbuf.size();
-
-                if (N <= 0)
-                {
-                    break;
-                }
                 ssize_t ret;
                 rxbuf.resize(N + 1500);
                 ret = recv(sockfd, (char*)&rxbuf[0] + N, 1500, 0);
@@ -285,6 +305,7 @@ namespace easywsclient {
                 }
                 else {
                     txbuf.erase(txbuf.begin(), txbuf.begin() + ret);
+					std::vector<uint8_t>().swap(txbuf);
                 }
             }
             if (!txbuf.size() && readyState == CLOSING) {
@@ -306,6 +327,7 @@ namespace easywsclient {
                 CallbackAdapter(CallbackImp& callable) : callable(callable) { }
                 void operator()(const std::vector<uint8_t>& message) {
                     std::string stringMessage(message.begin(), message.end());
+					//printf("%s\n",stringMessage.c_str());
                     callable(stringMessage);
                 }
             };
@@ -313,14 +335,34 @@ namespace easywsclient {
             _dispatchBinary(bytesCallback);
         }
 
+		virtual void _dispatchChar(CharCallbackImp & callable) {
+			struct CallbackAdapter : public BytesCallbackImp
+				// Adapt void(const std::string<uint8_t>&) to void(const std::string&)
+			{
+				CharCallbackImp& callable;
+				CallbackAdapter(CharCallbackImp& callable) : callable(callable) { }
+				void operator()(const std::vector<uint8_t>& message) {
+					std::string stringMessage(message.begin(), message.end());
+					//printf("%s\n",stringMessage.c_str());
+					callable(stringMessage.c_str());
+				}
+			};
+			CallbackAdapter bytesCallback(callable);
+			_dispatchBinary(bytesCallback);
+		}
+
         virtual void _dispatchBinary(BytesCallbackImp & callable) {
             // TODO: consider acquiring a lock on rxbuf...
+			//mtx.lock();
             while (true) {
                 wsheader_type ws;
-                if (rxbuf.size() < 2)
+                
+				if (rxbuf.size() < 2)
                 {
+//					mtx.unlock();
                     return; /* Need at least 2 */
                 }
+
                 const uint8_t * data = (uint8_t *)&rxbuf[0]; // peek, but don't consume
                 ws.fin = (data[0] & 0x80) == 0x80;
                 ws.opcode = (wsheader_type::opcode_type) (data[0] & 0x0f);
@@ -329,6 +371,7 @@ namespace easywsclient {
                 ws.header_size = 2 + (ws.N0 == 126 ? 2 : 0) + (ws.N0 == 127 ? 8 : 0) + (ws.mask ? 4 : 0);
                 if (rxbuf.size() < ws.header_size)
                 {
+//					mtx.unlock();
                     return; /* Need: ws.header_size - rxbuf.size() */
                 }
                 int i = 0;
@@ -366,8 +409,10 @@ namespace easywsclient {
                     ws.masking_key[2] = 0;
                     ws.masking_key[3] = 0;
                 }
+
                 if (rxbuf.size() < ws.header_size + ws.N)
                 {
+//					mtx.unlock();
                     return; /* Need: ws.header_size+ws.N - rxbuf.size() */
                 }
 
@@ -408,6 +453,7 @@ namespace easywsclient {
 
                 rxbuf.erase(rxbuf.begin(), rxbuf.begin() + ws.header_size + (size_t)ws.N);
             }
+//			mtx.unlock();
         }
 
         void sendPing() {
@@ -517,6 +563,7 @@ namespace easywsclient {
         readyStateValues getReadyState() const { return CLOSED; }
         void _dispatch(CallbackImp & callable) { }
         void _dispatchBinary(BytesCallbackImp& callable) { }
+		void _dispatchChar(CharCallbackImp & callable) { }
     };
 
     WebSocket::pointer  WebSocket::create(const std::string &hosts, int port, const std::string &_path) {
