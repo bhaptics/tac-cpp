@@ -1,3 +1,5 @@
+## This project is deprecated
+
 ## Prerequisite
 * tactosy app installed
    * window (from 8.1) 
